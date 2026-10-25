@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FuelWatch: ping fuel that hits the ground</title>
+<meta name="description" content="One tap when fuel hits the ground at a gas station. A free public map of drops at any station.">
+<meta name="theme-color" content="#10110f">
+<meta property="og:title" content="FuelWatch">
+<meta property="og:description" content="Ping fuel that hits the ground at a gas station. Free, no sign-up.">
+<meta property="og:image" content="/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Outfit:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <section id="panel">
+    <header class="top">
+      <div><p class="brand">FuelWatch</p><p class="sub" id="where">Anywhere</p></div>
+      <div class="row"><button id="langBtn" class="btn ghost" type="button">ES</button><button id="deskBtn" class="btn soft" type="button" data-t="desk">Desk</button></div>
+    </header>
+    <div id="scroll">
+      <!-- PING -->
+      <div class="tab" id="tab-ping">
+        <div class="row"><button id="noteBtn" class="btn soft" type="button" data-t="note">Note</button><span class="mute small" data-t="optional">Optional</span></div>
+        <textarea id="note" class="input hidden" maxlength="200" rows="2"></textarea>
+        <button id="hit" class="hit" type="button"><span class="h1" data-t="hit">Fuel hit the ground</span><span class="h2" data-t="hitSub">Ping it</span></button>
+        <div id="stationCard" class="card">
+          <p class="label" data-t="nearest">Station you're pinging</p>
+          <p class="sname" id="sName">…</p>
+          <p class="mute" id="sAddr"></p>
+          <p class="small" id="sMeta"></p>
+          <p class="status" id="sStatus"></p>
+        </div>
+        <div class="row wrap">
+          <button id="locBtn" class="btn yellow-outline" type="button">📍 <span data-t="useLoc">Use my location</span></button>
+          <span id="gpsMsg" class="small mute" role="status"></span>
+        </div>
+        <p class="label" data-t="book">Nearby</p>
+        <div id="chips" class="chips"></div>
+        <form id="searchForm" class="row">
+          <input id="q" class="input grow" autocomplete="off" enterkeyhint="search">
+          <button class="btn soft" type="submit" data-t="find">Find</button>
+        </form>
+        <div id="searchResults" class="list"></div>
+        <div class="card nrc">
+          <p class="label" data-t="nrc">National Response Center</p>
+          <p class="small" data-t="nrcBody"></p>
+          <a class="btn soft" href="tel:18004248802" data-t="callNrc">Call 1-800-424-8802</a>
+        </div>
+      </div>
+      <!-- MAP (mobile) -->
+      <div class="tab hidden" id="tab-map"><div id="mapSlot" class="mapslot"></div></div>
+      <!-- FEED -->
+      <div class="tab hidden" id="tab-feed"><p class="label" data-t="feedTitle">Recent pings, all phones</p><div id="feed" class="list"></div></div>
+      <!-- PIZZA -->
+      <div class="tab hidden" id="tab-pizza">
+        <div class="card pizza">
+          <p class="big">🍕 <span data-t="pizzaTitle">Pizza of the Week</span></p>
+          <p data-t="pizzaBody1"></p>
+          <p data-t="pizzaBody2"></p>
+          <p class="small mute" data-t="pizzaBody3"></p>
+        </div>
+        <form id="pizzaForm" class="card">
+          <p class="label" data-t="freeEntry">Free entry</p>
+          <input id="pName" class="input" maxlength="40" autocomplete="given-name">
+          <input id="pContact" class="input" maxlength="80" autocomplete="tel">
+          <button class="btn yellow" type="submit" data-t="enter">Enter this week</button>
+          <p id="pizzaMsg" class="small" role="status"></p>
+          <p class="small mute" data-t="pizzaPrivate"></p>
+        </form>
+        <div class="card"><p class="label" data-t="yourPings">Your pings on this phone</p><p class="big" id="myCount">0</p><p class="small mute" id="myStreak"></p></div>
+        <p class="small"><a href="pizza.html" data-t="pizzaRules">How Pizza of the Week works</a> · <a href="terms.html" data-t="terms">Terms</a> · <a href="privacy.html" data-t="privacy">Privacy</a></p>
+      </div>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button type="button" data-tab="ping" class="on"><span>💧</span><b data-t="ping">Ping</b></button>
+      <button type="button" data-tab="map"><span>🗺️</span><b data-t="map">Map</b></button>
+      <button type="button" data-tab="feed"><span>📡</span><b data-t="feed">Feed</b></button>
+      <button type="button" data-tab="pizza"><span>🍕</span><b data-t="pizza">Pizza</b></button>
+    </nav>
+  </section>
+  <section id="mapWide"><div id="map"></div></section>
+</div>
+
+<!-- Ping confirmation: fixed overlay above the map at every width -->
+<div id="confirm" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="cTitle">
+  <div class="sheet">
+    <p class="plus" id="cPlus">+3</p>
+    <p class="ctitle" id="cTitle">Ping is in.</p>
+    <p class="mute" id="cBody"></p>
+    <button id="cAgain" class="btn yellow wide" type="button" data-t="again">Ping another</button>
+  </div>
+</div>
+
+<!-- Desk: station staff -->
+<div id="desk" class="overlay hidden" role="dialog" aria-modal="true">
+  <div class="sheet left">
+    <div class="row between"><p class="ctitle" data-t="deskTitle">Station desk</p><button id="deskClose" class="btn ghost" type="button" data-t="close">Close</button></div>
+    <p class="small" data-t="deskWhat"></p>
+    <p class="label" id="dStation"></p>
+    <p class="small" id="dHistory"></p>
+    <label class="small" for="dCode" data-t="codeLabel">Station staff code (4 digits)</label>
+    <div class="row"><input id="dCode" class="input grow" inputmode="numeric" maxlength="4" pattern="\d{4}" placeholder="4-digit code"><button id="dFix" class="btn soft" type="button" data-t="markFixed">Mark cleaned up</button></div>
+    <p class="small" id="dMsg" role="status"></p>
+    <p class="label" data-t="dispute">Station dispute</p>
+    <textarea id="dText" class="input" rows="3" maxlength="600"></textarea>
+    <input id="dContact" class="input" maxlength="80">
+    <button id="dSend" class="btn soft" type="button" data-t="send">Send dispute</button>
+    <p class="small mute" data-t="pitch"></p>
+  </div>
+</div>
+<div id="toast" class="toast hidden" role="status"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="demo-shim.js"></script><script src="app.js"></script>
+</body>
+</html>

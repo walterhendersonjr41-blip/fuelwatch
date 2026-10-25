@@ -1,0 +1,12 @@
+# FuelWatch on Netlify: static app (repo root) + one function (netlify/functions/fw.mjs) using Netlify Blobs for shared pings.
+# Set env FW_ADMIN_TOKEN in Netlify for the owner admin endpoint.
+[build]
+  publish = "."
+  functions = "netlify/functions"
+[functions]
+  node_bundler = "esbuild"
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
