@@ -59,7 +59,7 @@
         .then(function (a) { return J(200, { results: (a || []).map(function (x) { return { lat: +x.lat, lng: +x.lon, label: x.display_name }; }) }); })
         .catch(function () { return J(200, { results: [] }); });
     }
-    if (path === "/api/pizza" || path === "/api/dispute") return J(400, { error: "Demo copy: nothing is collected or sent here." });
+    if (path === "/api/pizza" || path === "/api/dispute") return J(400, { error: "Not available yet: this needs the FuelWatch server. Nothing was sent." });
     if (path === "/api/fixed") return J(403, { error: "code" });
     return J(404, { error: "demo" });
   };
