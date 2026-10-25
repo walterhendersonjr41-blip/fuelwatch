@@ -19,7 +19,7 @@
       needStation:"Pick a station first.", live:"Live", quiet:"Quiet", fixed:"Cleaned up", drop:"drop", drops:"drops", today:"today", inLast:"in the last 24 h",
       gpsSeek:"Looking for this phone…", gpsLock:"GPS locked", gpsDenied:"Location is blocked. Allow location for this site in your browser settings, or search a station below.",
       gpsNo:"This phone can't share location. Search a station below.", gpsFail:"Couldn't get a GPS fix. Try again outside, or search below.",
-      approx:"Approximate area. Tap Use my location for exact.", loading:"Looking up stations…", none:"No stations found here. Try a city or a street.", busy:"Station lookup is busy. Try again in a minute.",
+      approx:"Approximate area. Tap Use my location for exact.", loading:"Looking up stations…", none:"No stations found here. Try a city or a street.", busy:"Station lookup is busy. Try again in a minute.", retry:"Try again", spotName:"Station where I am", spotSub:"Map lookup busy, using your location", retry:"Try again", spotName:"Station where I am", spotSub:"Map lookup busy, using your location",
       deskTitle:"Station desk", close:"Close", deskWhat:"For station owners and staff. See every ping at your station, and mark a spill cleaned up with your 4-digit station code. Reports stay public; this is never a fee to take one down.",
       codeLabel:"Station staff code (4 digits)", codePh:"4-digit code", markFixed:"Mark cleaned up", wrong:"That code doesn't match this station. Ask FuelWatch for your station's code.",
       fixedOk:"Marked cleaned up. Thanks.", dispute:"Station dispute", disputePh:"What's wrong with a report at your station?", disputeContact:"How to reach you (optional)",
@@ -42,7 +42,7 @@
       needStation:"Elige una estación primero.", live:"Activo", quiet:"Tranquilo", fixed:"Limpiado", drop:"aviso", drops:"avisos", today:"hoy", inLast:"en las últimas 24 h",
       gpsSeek:"Buscando este teléfono…", gpsLock:"GPS fijo", gpsDenied:"La ubicación está bloqueada. Permítela para este sitio en tu navegador, o busca una estación abajo.",
       gpsNo:"Este teléfono no comparte ubicación. Busca una estación abajo.", gpsFail:"No se pudo obtener GPS. Intenta afuera o busca abajo.",
-      approx:"Zona aproximada. Toca Usar mi ubicación.", loading:"Buscando estaciones…", none:"No se encontraron estaciones. Prueba una ciudad o calle.", busy:"La búsqueda está ocupada. Intenta en un minuto.",
+      approx:"Zona aproximada. Toca Usar mi ubicación.", loading:"Buscando estaciones…", none:"No se encontraron estaciones. Prueba una ciudad o calle.", busy:"La búsqueda está ocupada. Intenta en un minuto.", retry:"Reintentar", spotName:"Estación donde estoy", spotSub:"Mapa ocupado, usando tu ubicación",
       deskTitle:"Mesa de la estación", close:"Cerrar", deskWhat:"Para dueños y personal de estaciones. Mira cada aviso en tu estación y marca un derrame como limpiado con tu código de 4 dígitos. Los reportes siguen públicos; nunca es un pago para quitarlos.",
       codeLabel:"Código del personal (4 dígitos)", codePh:"Código de 4 dígitos", markFixed:"Marcar limpiado", wrong:"Ese código no corresponde a esta estación.",
       fixedOk:"Marcado como limpiado. Gracias.", dispute:"Disputa de la estación", disputePh:"¿Qué está mal con un reporte en tu estación?", disputeContact:"Cómo contactarte (opcional)",
@@ -87,9 +87,10 @@
     var r = 8000, dLat = r / 111320, dLng = r / (111320 * Math.cos(lat * Math.PI / 180));
     var bb = [(lat - dLat).toFixed(4), (lng - dLng).toFixed(4), (lat + dLat).toFixed(4), (lng + dLng).toFixed(4)].join(",");
     var q = "[out:json][timeout:25][bbox:" + bb + "];nwr[\"amenity\"=\"fuel\"];out center 120;";
-    var mirrors = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
+    var mirrors = ["https://overpass-api.de/api/interpreter", "https://overpass.private.coffee/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
     function one(u) {
-      return fetch(u, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded" } })
+      var ac = window.AbortController ? new AbortController() : null; if (ac) setTimeout(function () { ac.abort(); }, 25000);
+      return fetch(u, { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "Content-Type": "application/x-www-form-urlencoded" }, signal: ac ? ac.signal : undefined })
         .then(function (x) { if (!x.ok) throw new Error("op"); return x.json(); })
         .then(function (j) { if (!j || !Array.isArray(j.elements) || !j.elements.length) throw new Error("op"); return j.elements; });
     }
@@ -108,9 +109,17 @@
       return r.json().catch(function () { return {}; }).then(function (j) {
         if (r.ok && j.stations && j.stations.length) return j;
         var c = j.center || (lat != null ? { lat: lat, lng: lng, approx: false } : { lat: 35.0456, lng: -85.3097, approx: true });
-        return overpassDirect(c.lat, c.lng).then(function (st) { return { center: c, stations: st }; });
+        return overpassDirect(c.lat, c.lng).then(function (st) { return { center: c, stations: st }; }).catch(function () { return fallbackStations(c); });
       });
     });
+  }
+  // When every free map server is busy: use saved stations near here, or let the user ping "the station where I'm standing".
+  function fallbackStations(c) {
+    var spot = { id: "spot/" + c.lat.toFixed(4) + "," + c.lng.toFixed(4), brand: "", name: t("spotName"), street: t("spotSub"), city: "", lat: +c.lat.toFixed(5), lng: +c.lng.toFixed(5) };
+    return fetch("demo-stations.json").then(function (r) { return r.json(); }).then(function (j) {
+      var near = (j.stations || []).filter(function (s) { return miles(c, s) < 12; });
+      return { center: c, stations: near.length ? near : [spot], fallback: true };
+    }).catch(function () { return { center: c, stations: [spot], fallback: true }; });
   }
   function loadStations(lat, lng, why) {
     var qs = lat != null ? "?lat=" + lat.toFixed(4) + "&lng=" + lng.toFixed(4) : "";
@@ -124,7 +133,8 @@
       if (!selected || why === "gps" || why === "search") selected = stations[0] || null;
       if (map) { map.setView([ref.lat, ref.lng], 13); }
       renderAll();
-    }).catch(function () { $("chips").innerHTML = '<span class="small mute">' + esc(t("busy")) + "</span>"; });
+      if (j.fallback) $("chips").insertAdjacentHTML("afterbegin", '<span class="small mute">' + esc(t("busy")) + ' <button type="button" class="btn soft" id="retryStations">' + esc(t("retry")) + "</button></span>");
+    }).catch(function () { $("chips").innerHTML = '<span class="small mute">' + esc(t("busy")) + ' <button type="button" class="btn soft" id="retryStations">' + esc(t("retry")) + "</button></span>"; });
   }
   function useLocation(auto) {
     if (!navigator.geolocation) { $("gpsMsg").textContent = t("gpsNo"); if (auto) loadStations(); return; }
@@ -298,6 +308,7 @@
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") { $("confirm").classList.add("hidden"); $("desk").classList.add("hidden"); } });
   window.addEventListener("online", flush);
 
+  document.addEventListener("click", function (e) { if (e.target && e.target.id === "retryStations") { if (origin && gpsOn) loadStations(origin.lat, origin.lng, "gps"); else useLocation(false); } });
   initMap(); applyLang();
   // Try GPS right away if already allowed; otherwise show approximate area and wait for the "Use my location" tap.
   if (navigator.permissions && navigator.permissions.query) {

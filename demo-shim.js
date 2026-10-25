@@ -15,7 +15,13 @@
     if (u.indexOf("/api/") !== 0) return real(input, init);
     var path = u.split("?")[0], qs = new URLSearchParams(u.split("?")[1] || ""), method = (init && init.method) || "GET";
     if (path === "/api/stations") {
-      if (qs.get("lat")) return J(200, { center: { lat: +qs.get("lat"), lng: +qs.get("lng"), approx: false }, stations: [] });
+      if (qs.get("lat")) {
+        var la = +qs.get("lat"), lo = +qs.get("lng"), ctr = { lat: la, lng: lo, approx: false };
+        // Inside the saved sample area (Chattanooga) answer instantly; elsewhere the app asks OpenStreetMap directly.
+        if (Math.abs(la - 35.0456) < 0.15 && Math.abs(lo + 85.3097) < 0.18)
+          return real("demo-stations.json").then(function (r) { return r.json(); }).then(function (j) { return J(200, { center: ctr, stations: j.stations || [] }); }).catch(function () { return J(200, { center: ctr, stations: [] }); });
+        return J(200, { center: ctr, stations: [] });
+      }
       return real("demo-stations.json");
     }
     if (path === "/api/pings") {

@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Outfit:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <link rel="stylesheet" href="style.css">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 </head>
 <body>
 <div id="app">
@@ -118,5 +119,8 @@
 <div id="toast" class="toast hidden" role="status"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script src="demo-shim.js"></script><script src="app.js"></script>
+<script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));</script>
+<script src="ai-helper.js"></script>
+<script>AIHelper.init({"referrer": "fuelwatch", "title": "✨ Spill helper", "color": "#b8860b", "bottom": 96, "greeting": "Hi! I can help with fuel spills at gas stations: what to do right now, who to report to, and how to write a clear note. English or Spanish.", "system": "You are FuelWatch's helper. FuelWatch lets anyone ping when fuel hits the ground at a gas station (overfilled tanks, leaking nozzles, drips). Give short, practical, plain-language answers (under 120 words, short lines). Safety first: no smoking or flames, stop pumping, tell the attendant, use the station's emergency shut-off button if needed, keep kids and pets back, call 911 if large, burning, or reaching a drain or creek. Big spills can be reported to the National Response Center at 1-800-424-8802 or the state environmental agency. Answer in the user's language (English or Spanish). Never invent facts about a specific station.", "note": "Not legal advice. Danger or fire? Call 911.", "chips": [["⛽ Fuel spilled — what do I do?", "Fuel just spilled at the pump. What should I do right now, step by step?"], ["📞 Who do I report it to?", "Who should I report a gasoline spill at a gas station to, and when is it serious enough to call someone official?"], ["✍️ Help me write a note", "Help me write a short, factual note (under 200 characters) for my FuelWatch ping. Ask me what I saw if you need to, otherwise give a fill-in-the-blank example."], ["📊 Explain this station", "Using the station info on my screen, explain in plain words what the drop counts mean for this station."], ["🇪🇸 En español", "Explica en español qué hacer si se derrama gasolina en la estación."]], "contextSelector": "#panel"});</script>
 </body>
 </html>
